@@ -1,0 +1,38 @@
+services:
+  database:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: contracts
+      MYSQL_USER: contracts_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - contracts-data:/var/lib/mysql
+  backend:
+    build: ./backend
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://database:3306/contracts?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      SPRING_DATASOURCE_USERNAME: contracts_app
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      SESSION_COOKIE_SECURE: "false"
+      APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-false}
+      APP_BOOTSTRAP_CODE: ${APP_BOOTSTRAP_CODE:-}
+      APP_BOOTSTRAP_NAME: ${APP_BOOTSTRAP_NAME:-}
+      APP_BOOTSTRAP_EMAIL: ${APP_BOOTSTRAP_EMAIL:-}
+      APP_BOOTSTRAP_PASSWORD: ${APP_BOOTSTRAP_PASSWORD:-}
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+volumes:
+  contracts-data:
